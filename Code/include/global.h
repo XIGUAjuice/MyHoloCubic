@@ -72,4 +72,5 @@ extern lv_obj_t *label_text_city1;
 extern lv_obj_t *label_text_city2;
 extern lv_obj_t *label_text_city3;
 extern lv_obj_t *page_multi_weather;
+
 #endif

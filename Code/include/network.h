@@ -9,7 +9,7 @@
 #include <sd_card.h>
 
 /* https://lbs.amap.com/ 申请API */
-#define WEBKEY "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+#define WEBKEY ""
 
 class Network
 {

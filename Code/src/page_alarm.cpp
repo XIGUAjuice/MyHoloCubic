@@ -116,7 +116,7 @@ void Alarm::setAlarm(lv_obj_t **roller_alarm)
     min_set = lv_roller_get_selected(roller_alarm[3]) * 10 + lv_roller_get_selected(roller_alarm[4]);
 
     // 将闹钟设置写入sd卡
-    DynamicJsonDocument doc(100);
+    DynamicJsonDocument doc(50);
     doc["hour"] = hour_set;
     doc["minute"] = min_set;
     sd.writeJson("/alarm.json", doc);
@@ -128,7 +128,7 @@ void Alarm::setAlarm(lv_obj_t **roller_alarm)
 void Alarm::readFromSd(lv_obj_t **roller_alarm)
 {
     Serial.println("读取闹钟设置");
-    DynamicJsonDocument doc(100);
+    DynamicJsonDocument doc(50);
     sd.readJson("/alarm.json", doc);
     int hour_set = doc["hour"];
     int min_set = doc["minute"];

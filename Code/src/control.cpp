@@ -140,7 +140,6 @@ static void tile_event_cb(lv_obj_t *obj, lv_event_t event)
             Serial.println("开启SmartConfig");
             smart_config_start = true;
             WiFi.beginSmartConfig();
-            lv_task_set_prio(task_fresh_smart_config, LV_TASK_PRIO_HIGH);
         }
         // 退出扫码配网页面后关闭SmartConfig以及关闭相关task
         else if ((x != 2 || y != 1) && smart_config_start)
@@ -148,7 +147,6 @@ static void tile_event_cb(lv_obj_t *obj, lv_event_t event)
             Serial.println("关闭SmartConfig");
             smart_config_start = false;
             WiFi.stopSmartConfig();
-            lv_task_set_prio(task_fresh_smart_config, LV_TASK_PRIO_OFF);
         }
         break;
     }
@@ -164,9 +162,11 @@ void createTile()
     // 创建磁贴模块
     tile_main = lv_tileview_create(lv_scr_act(), NULL);
 
-    // // 设置可达区域
+    // 设置可达区域
     static lv_point_t valid_pos[] = {{0, 0}, {1, 0}, {2, 0}, {0, 1}, {1, 1}, {2, 1}, {0, 2}, {1, 2}};
     lv_tileview_set_valid_positions(tile_main, valid_pos, 8);
+    // static lv_point_t valid_pos[] = {{0, 0}};
+    // lv_tileview_set_valid_positions(tile_main, valid_pos, 1);
     // 设置边缘特效
     lv_tileview_set_edge_flash(tile_main, true);
 

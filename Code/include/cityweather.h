@@ -10,7 +10,4 @@
 
 void createPageWeather();
 
-/* 刷新天气 */
-void freshCityWeather();
-
 #endif

@@ -193,8 +193,8 @@ void InputDevice::mpuRead()
 /* LVGL输入设备初始化 */
 void InputDevice::inputDriveInit()
 {
-    // 初始化陀螺仪
-    mpuInit();
+    // // 初始化陀螺仪
+    // mpuInit();
 
     // 创建输入设备
     Serial.println("创建输入设备...");

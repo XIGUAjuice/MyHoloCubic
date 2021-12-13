@@ -181,11 +181,11 @@ void Network::setCityCode()
 	if (http_code == HTTP_CODE_OK)
 	{
 		Stream &response = http.getStream();
-		DynamicJsonDocument doc(2048);
+		DynamicJsonDocument doc(1024);
 		deserializeJson(doc, response);
 		String city_code = doc["adcode"];
 		String city = doc["city"];
-		Serial.printf("当前所在城市为: %s, 城市代码为: %s \n", city, city_code);
+		Serial.printf("当前所在城市为: %s, 城市代码为: %s \n", city.c_str(), city_code.c_str());
 		this->city_code = city_code;
 	}
 	else
@@ -212,7 +212,7 @@ JsonObject Network::getWeatherLive(String city_code)
 	{
 		Serial.println("网络请求成功");
 		Stream &response = http.getStream();
-		DynamicJsonDocument doc(2048);
+		DynamicJsonDocument doc(1024);
 		deserializeJson(doc, response);
 		JsonObject weather_live = doc["lives"][0];
 		return weather_live;
@@ -236,7 +236,7 @@ JsonArray Network::getWeatherForecast(String city_code)
 	{
 		Serial.println("网络请求成功");
 		Stream &response = http.getStream();
-		DynamicJsonDocument doc(2048);
+		DynamicJsonDocument doc(1024);
 		deserializeJson(doc, response);
 		JsonArray weather_forecast = doc["forecasts"][0]["casts"];
 		return weather_forecast;

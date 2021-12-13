@@ -1,12 +1,56 @@
 #include <fresh_task.h>
 
-lv_task_t *task_fresh_weather;
-lv_task_t *task_fresh_info;
-lv_task_t *task_fresh_smart_config;
-lv_task_t *task_fresh_alarm;
-lv_task_t *task_fresh_city_weather;
-lv_task_t *task_fresh_weather_forecast;
+// lv_task_t *task_fresh_weather;
+// lv_task_t *task_fresh_info;
+// lv_task_t *task_fresh_smart_config;
+// lv_task_t *task_fresh_alarm;
+// lv_task_t *task_fresh_city_weather;
+// lv_task_t *task_fresh_weather_forecast;
 
+TaskHandle_t task_fresh_long_interval;
+TaskHandle_t task_fresh__short_interval;
+TaskHandle_t task_lvgl;
+
+/* 刷新天气 */
+void freshWeather(time_t time_now)
+{
+
+    // 每五分钟刷新天气
+    int h = hour(time_now);  // 区分白天和晚上
+
+    // 获取实时天气
+    JsonObject weather_live = net.getWeatherLive(net.getCityCode());
+    if (!weather_live.isNull())
+    {
+        Serial.println("更新天气成功");
+
+        int temp = weather_live["temperature"];
+        if (temp > 25)
+        {
+            lv_img_set_src(img_temp, "S:/bin/gaowen.bin");
+        }
+        if (temp < 10)
+        {
+            lv_img_set_src(img_temp, "S:/bin/diwen.bin");
+        }
+        else
+        {
+            lv_img_set_src(img_temp, "S:/bin/changwen.bin");
+        }
+        lv_label_set_text(label_temp, (String(temp) + "℃").c_str());
+        lv_label_set_text(label_humidity, weather_live["humidity"]);
+
+        String weather = weather_live["weather"];
+        char weather_c_str[30];
+        getWeatherIcon(weather, h, weather_c_str);
+        lv_img_set_src(img_weather, weather_c_str);
+    }
+    else
+    {
+        Serial.println("更新天气失败");
+    }
+}
+/* 获取天气图标 */
 void getWeatherIcon(String weather, int h, char *icon)
 {
     String icon_path;
@@ -102,8 +146,9 @@ void getWeatherIcon(String weather, int h, char *icon)
 }
 
 /* 刷新日期 */
-void freshDate(time_t time_now, int &prev_day)
+void freshDate(time_t time_now)
 {
+    static int prev_day = -1;
     // 每天刷新日期
     int day_now = day(time_now);
 
@@ -120,8 +165,9 @@ void freshDate(time_t time_now, int &prev_day)
 }
 
 /* 刷新时间 */
-void freshTime(time_t time_now, int &prev_second)
+void freshTime(time_t time_now)
 {
+    static int prev_second = -1;
     // 每秒刷新时间
     int s = second(time_now);
     if (s != prev_second)
@@ -147,46 +193,6 @@ void freshTime(time_t time_now, int &prev_second)
     }
 }
 
-/* 刷新天气 */
-void freshWeather(lv_task_t *task)
-{
-    // 每五分钟刷新天气
-    time_t time_now = now(); //获取时间
-    int h = hour(time_now);  // 区分白天和晚上
-
-    // 获取实时天气
-    JsonObject weather_live = net.getWeatherLive(net.getCityCode());
-    if (!weather_live.isNull())
-    {
-        Serial.println("更新天气成功");
-
-        int temp = weather_live["temperature"];
-        if (temp > 25)
-        {
-            lv_img_set_src(img_temp, "S:/bin/gaowen.bin");
-        }
-        if (temp < 10)
-        {
-            lv_img_set_src(img_temp, "S:/bin/diwen.bin");
-        }
-        else
-        {
-            lv_img_set_src(img_temp, "S:/bin/changwen.bin");
-        }
-        lv_label_set_text(label_temp, (String(temp) + "℃").c_str());
-        lv_label_set_text(label_humidity, weather_live["humidity"]);
-
-        String weather = weather_live["weather"];
-        char weather_c_str[30];
-        getWeatherIcon(weather, h, weather_c_str);
-        lv_img_set_src(img_weather, weather_c_str);
-    }
-    else
-    {
-        Serial.println("更新天气失败");
-    }
-}
-
 /* 刷新WiFi连接情况 */
 void freshWifiConnect()
 {
@@ -197,24 +203,29 @@ void freshWifiConnect()
         {
             lv_img_set_src(img_wifi, "S:bin/wifi1.bin");
             net.initNtp();
-            Serial.println("打开天气更新");
-            lv_task_set_prio(task_fresh_weather, LV_TASK_PRIO_MID);
-            lv_task_ready(task_fresh_weather);
-            Serial.println("关闭SmartConfig更新");
-            lv_task_set_prio(task_fresh_smart_config, LV_TASK_PRIO_OFF);
+            Serial.println("打开信息更新");
+            vTaskResume(task_fresh_long_interval);
+            // time_t time_now = now();
+            // freshWeather(time_now);
+            // freshCityWeather(time_now);
+            // freshTime(time_now);
+            // freshDate(time_now);
+            // fresh_weather_forecast();
         }
         else
         {
             lv_img_set_src(img_wifi, "S:bin/wifi0.bin");
             net.stopNtp();
+            vTaskSuspend(task_fresh_long_interval);
             Serial.println("关闭天气更新");
-            lv_task_set_prio(task_fresh_weather, LV_TASK_PRIO_OFF);
         }
     }
 }
 
-void freshSmartConfig(lv_task_t *task)
+/* 刷新SmartConfig页面 */
+void freshSmartConfig()
 {
+
     // 显示加载圈
     if (!WiFi.smartConfigDone())
     {
@@ -240,28 +251,13 @@ void freshSmartConfig(lv_task_t *task)
         // 将Json写入sd卡中
         sd.writeJson("/wifi.json", wifi_doc);
 
-        lv_task_ready(task_fresh_city_weather);
-        lv_task_ready(task_fresh_weather_forecast);
         net.setCityCode();
     }
 }
 
-/* 刷新日期时间 */
-void freshInfo(lv_task_t *task)
-{
-    static int prev_second = -1;
-    static int prev_day = -1;
-    time_t time_now = now();
-
-    freshWifiConnect();
-    freshDate(time_now, prev_day);
-    freshTime(time_now, prev_second);
-}
-
 /* 刷新闹钟 */
-void freshAlarm(lv_task_t *task)
+void freshAlarm(time_t time_now)
 {
-    time_t time_now = now();
     my_alarm.checkAlarm(time_now);
     if (my_alarm.getAlarmOn())
     {
@@ -270,7 +266,7 @@ void freshAlarm(lv_task_t *task)
 }
 
 /* 刷新天气预报 */
-void fresh_weather_forecast(lv_task_t *task)
+void fresh_weather_forecast()
 {
     fresh_weather_icon();
     fresh_temperature_chart();
@@ -278,18 +274,16 @@ void fresh_weather_forecast(lv_task_t *task)
 }
 
 /* 刷新城市天气 */
-void freshCityWeather(lv_task_t *task)
+void freshCityWeather(time_t time_now)
 {
     // 每五分钟刷新天气
-    time_t time_now = now(); //获取时间
     int h = hour(time_now);  // 区分白天和晚上
 
-    // 获取实时天气
+    Serial.println("获取广州天气");
+    // 获取广州天气
     JsonObject weather_live = net.getWeatherLive("440106");
     if (!weather_live.isNull())
     {
-        Serial.println("更新天气成功");
-
         int temp = weather_live["temperature"];
 
         lv_label_set_text(label_temp_city1, (String(temp) + "℃").c_str());
@@ -302,14 +296,14 @@ void freshCityWeather(lv_task_t *task)
     else
     {
         Serial.println("更新天气失败");
+        return;
     }
 
-    // 获取实时天气
-    weather_live = net.getWeatherLive("440300");
+    // 北京天气
+    Serial.println("获取北京天气");
+    weather_live = net.getWeatherLive("110108");
     if (!weather_live.isNull())
     {
-        Serial.println("更新天气成功");
-
         int temp = weather_live["temperature"];
 
         lv_label_set_text(label_temp_city2, (String(temp) + "℃").c_str());
@@ -322,14 +316,14 @@ void freshCityWeather(lv_task_t *task)
     else
     {
         Serial.println("更新天气失败");
+        return;
     }
 
-    // 获取实时天气
-    weather_live = net.getWeatherLive("330000");
+    // 杭州天气
+    Serial.println("获取杭州天气");
+    weather_live = net.getWeatherLive("330114");
     if (!weather_live.isNull())
     {
-        Serial.println("更新天气成功");
-
         int temp = weather_live["temperature"];
 
         lv_label_set_text(label_temp_city3, (String(temp) + "℃").c_str());
@@ -342,28 +336,56 @@ void freshCityWeather(lv_task_t *task)
     else
     {
         Serial.println("更新天气失败");
+        return;
+    }
+}
+
+/* lvgl刷新任务 */
+void freshLvgl(void *pvParameters)
+{
+    (void)pvParameters;
+    for (;;)
+    {
+        lv_task_handler();
+        vTaskDelay(20 / portTICK_PERIOD_MS);
+    }
+}
+
+/* 间隔较长的任务 */
+void freshLongInterval(void *pvParameters)
+{
+    (void) pvParameters;
+    for(;;)
+    {
+        time_t time_now = now(); //获取时间
+        freshWeather(time_now);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        fresh_weather_forecast();
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        freshCityWeather(time_now);
+        vTaskDelay(1000 * 60 * 5 / portTICK_PERIOD_MS);
+    }
+}
+
+/* 间隔较短的任务 */
+void freshShortInterval(void *pvParameters)
+{
+    (void) pvParameters;
+    for(;;)
+    {
+        time_t time_now = now(); //获取时间
+        freshDate(time_now);
+        freshTime(time_now);
+        freshSmartConfig();
+        freshAlarm(time_now);
+        freshWifiConnect();
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
 
 /* 创建任务 */
 void createTasks()
 {
-    // 每5分钟更新天气
-    task_fresh_weather = lv_task_create(freshWeather, 1000 * 60 * 5, LV_TASK_PRIO_MID, NULL);
-
-    // 每20ms刷新时间
-    task_fresh_info = lv_task_create(freshInfo, 20, LV_TASK_PRIO_HIGH, NULL);
-
-    // 每20ms检测SmartConfig状态，默认关闭
-    task_fresh_smart_config = lv_task_create(freshSmartConfig, 20, LV_TASK_PRIO_OFF, NULL);
-
-    // 每20ms检测闹钟状态
-    task_fresh_alarm = lv_task_create(freshAlarm, 20, LV_TASK_PRIO_MID, NULL);
-
-    // 每10分钟更新城市天气
-    task_fresh_city_weather = lv_task_create(freshCityWeather, 1000 * 60 * 10, LV_TASK_PRIO_MID, NULL);
-    lv_task_ready(task_fresh_city_weather);
-
-    // 每6分钟刷新天气预报
-    task_fresh_weather_forecast = lv_task_create(fresh_weather_forecast, 1000 * 60 * 6, LV_TASK_PRIO_MID, NULL);
+    xTaskCreate(freshShortInterval, "short_interval", 10480, NULL, 2, &task_fresh__short_interval);
+    xTaskCreate(freshLongInterval, "long_interval", 10480, NULL, 0, &task_fresh_long_interval);
 }

@@ -15,10 +15,10 @@ private:
     static int16_t gx, gy, gz;
     static MPU6050 mpu;
     static std::deque<int> buf;
-    void mpuInit(); // 陀螺仪初始化
     static void bufPush(int key);
 
 public:
+    void mpuInit(); // 陀螺仪初始化
     void inputDriveInit();      // LVGL输入设备初始化
     static void updateMotion(); // 更新加速度数据
     static void mpuRead();      // 将陀螺仪加速度变化读取为按键输入
